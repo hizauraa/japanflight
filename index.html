@@ -2,59 +2,86 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Japan Flight Network 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Japan Flight Network 2026 Mobile</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --sidebar-bg: rgba(10, 10, 15, 0.98); --accent-red: #e10012; --accent-blue: #0078d4; }
-        body { margin: 0; background: #050507; font-family: 'Inter', 'Hiragino Sans', sans-serif; overflow: hidden; display: flex; }
-        #sidebar { width: 320px; height: 100vh; background: var(--sidebar-bg); backdrop-filter: blur(15px); border-right: 1px solid rgba(255,255,255,0.1); z-index: 1001; padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; }
-        #map { flex-grow: 1; height: 100vh; background: #050507; }
+        :root { --panel-bg: rgba(10, 10, 15, 0.98); --accent-red: #e10012; --accent-blue: #0078d4; }
+        body { margin: 0; background: #050507; font-family: 'Inter', sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+        
+        #map { flex-grow: 1; width: 100vw; height: 100vh; background: #050507; position: absolute; top: 0; left: 0; }
+
+        /* レスポンシブパネル (PC: サイドバー / スマホ: ボトムシート) */
+        #ui-container {
+            position: relative; z-index: 1001; background: var(--panel-bg);
+            backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; transition: 0.3s ease;
+        }
+
+        @media (min-width: 768px) { /* PC */
+            #ui-container { width: 320px; height: 100vh; padding: 25px; }
+            #details { flex-grow: 1; overflow-y: auto; }
+        }
+        @media (max-width: 767px) { /* スマホ */
+            #ui-container {
+                position: fixed; bottom: 0; left: 0; width: 100%;
+                max-height: 60vh; padding: 15px; border-radius: 20px 20px 0 0;
+                transform: translateY(calc(100% - 60px)); /* 通常時は少しだけ見せる */
+            }
+            #ui-container.active { transform: translateY(0); }
+            .drag-handle { width: 40px; height: 4px; background: #444; border-radius: 2px; margin: 0 auto 10px; cursor: pointer; }
+        }
+
         h2 { font-size: 14px; letter-spacing: 2px; color: #888; margin: 0 0 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .notice-box { background: rgba(255, 165, 0, 0.05); border: 1px solid rgba(255, 165, 0, 0.2); border-radius: 6px; padding: 8px; margin-bottom: 15px; font-size: 9px; color: #ffa500; }
         
-       
-        .notice-box { background: rgba(255, 165, 0, 0.1); border: 1px solid rgba(255, 165, 0, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 20px; font-size: 10px; color: #ffa500; line-height: 1.4; }
-        
-        .filter-group { margin-bottom: 20px; }
-        .filter-btn { display: flex; align-items: center; padding: 10px; margin: 4px 0; border-radius: 6px; cursor: pointer; font-size: 11px; transition: 0.2s; background: rgba(255,255,255,0.03); color: #ccc; font-weight: bold; }
-        .filter-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 12px; }
-        #details { margin-top: 20px; flex-grow: 1; overflow-y: auto; display: none; }
-        .hub-name { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 5px; }
-        .hub-id { font-size: 12px; color: #666; letter-spacing: 1px; margin-bottom: 20px; }
-        .carrier-section { margin-top: 15px; }
-        .carrier-title { font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 3px; margin-bottom: 8px; display: inline-block; letter-spacing: 1px; }
+        .filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }
+        .filter-btn {
+            flex: 1 1 calc(50% - 5px); min-width: 120px;
+            display: flex; align-items: center; padding: 8px; border-radius: 6px;
+            cursor: pointer; font-size: 10px; background: rgba(255,255,255,0.03); color: #ccc; font-weight: bold;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+        #details { display: none; margin-top: 10px; overflow-y: auto; }
+        .hub-name { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+        .hub-id { font-size: 10px; color: #666; letter-spacing: 1px; margin-bottom: 15px; }
+        .carrier-section { margin-top: 12px; }
+        .carrier-title { font-size: 9px; font-weight: bold; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; display: inline-block; }
         .dest-grid { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.1); }
-        .dest-tag { font-size: 10px; padding: 3px 8px; background: rgba(255,255,255,0.05); border-radius: 3px; color: #aaa; }
+        .dest-tag { font-size: 9px; padding: 3px 6px; background: rgba(255,255,255,0.05); border-radius: 2px; color: #aaa; }
     </style>
 </head>
 <body>
 
-<div id="sidebar">
+<div id="map"></div>
+
+<div id="ui-container">
+    <div class="drag-handle" onclick="toggleMobilePanel()"></div>
     <h2>FLIGHT NETWORK</h2>
     
     <div class="notice-box">
-        <strong>【免責事項】</strong><br>
-        本マップの路線データは2026年2月時点の情報を参考にしたシミュレーション用です。実際の運航状況、就航都市、ダイヤは変更される可能性があるため、正確な情報は必ず各航空会社の公式サイトを確認してください。
+        本マップは2026年2月時点の参考用です。実際の運航情報は各航空会社の公式サイトを確認してください。
     </div>
 
     <div class="filter-group">
-        <div class="filter-btn" onclick="filterRoutes('all')">View All routes</div>
-        <div class="filter-btn" onclick="filterRoutes('#0078d4')"><div class="dot" style="background:#0078d4"></div> ANA Group</div>
-        <div class="filter-btn" onclick="filterRoutes('#e10012')"><div class="dot" style="background:#e10012"></div> JAL Group</div>
-        <div class="filter-btn" onclick="filterRoutes('#9d33ff')"><div class="dot" style="background:#9d33ff"></div> Peach</div>
-        <div class="filter-btn" onclick="filterRoutes('#2ecc71')"><div class="dot" style="background:#2ecc71"></div> Regional & Others</div>
+        <div class="filter-btn" onclick="filterRoutes('all')">All routes</div>
+        <div class="filter-btn" onclick="filterRoutes('#0078d4')"><div class="dot" style="background:#0078d4"></div>ANA</div>
+        <div class="filter-btn" onclick="filterRoutes('#e10012')"><div class="dot" style="background:#e10012"></div>JAL</div>
+        <div class="filter-btn" onclick="filterRoutes('#9d33ff')"><div class="dot" style="background:#9d33ff"></div>Peach</div>
+        <div class="filter-btn" onclick="filterRoutes('#2ecc71')"><div class="dot" style="background:#2ecc71"></div>Others</div>
     </div>
+
     <div id="details">
         <div class="hub-name" id="selected-name">-</div>
         <div class="hub-id" id="selected-id">-</div>
         <div id="carrier-list"></div>
     </div>
 </div>
-<div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([36.5, 137.5], 6);
+    const map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([36.5, 137.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const airports = {
@@ -66,12 +93,7 @@
         "TKN":[30.62,130.98,"種子島"],"YAK":[30.38,130.65,"屋久島"],"KIE":[29.83,129.98,"喜界島"],"ASJ":[28.43,129.71,"奄美"],"TNE":[27.83,128.92,"徳之島"],"OIR":[27.37,128.60,"沖永良部"],"RNJ":[27.04,128.41,"与論"],"UEO":[26.36,126.75,"久米島"],"MMY":[24.78,125.29,"宮古"],"SHI":[24.82,125.14,"下地島"],"ISG":[24.39,124.24,"石垣"],"TRA":[24.60,123.75,"多良間"],"OGN":[24.04,123.76,"与那国"],"KJP":[25.94,131.32,"北大東"],"KDE":[25.84,131.23,"南大東"],"NKM":[35.24,136.92,"小牧"],"OIM":[34.78,139.38,"大島"],"NJA":[34.34,139.26,"新島"],"KZU":[34.19,139.15,"神津島"],"MYE":[34.07,139.56,"三宅島"]
     };
 
-    const carrierMap = {
-        "#0078d4": "ANA Group",
-        "#e10012": "JAL Group",
-        "#9d33ff": "Peach",
-        "#2ecc71": "Regional/Other"
-    };
+    const carrierNames = { "#0078d4": "ANA Group", "#e10012": "JAL Group", "#9d33ff": "Peach", "#2ecc71": "Regional/Other" };
 
     const routesData = [
         { from: "ANA", color: "#0078d4", routes: ["NRT-NGO", "NRT-ITM", "NRT-CTS", "HND-CTS", "HND-WKJ", "HND-ONH", "HND-SHB", "HND-KUH", "HND-HKD", "HND-ONV", "HND-AXT", "HND-SYO", "HND-NGO", "HND-TOY", "HND-KMQ", "HND-NTQ", "HND-HAC", "HND-KIX", "HND-ITM", "HND-UKB", "HND-OKJ", "HND-HIJ", "HND-IWK", "HND-UBE", "HND-TTJ", "HND-YGJ", "HND-IWJ", "HND-TKS", "HND-TAK", "HND-MYJ", "HND-KCZ", "HND-FUK", "HND-KKJ", "HND-HSG", "HND-OIT", "HND-KUM", "HND-NGS", "HND-KMI", "HND-KOJ", "HND-OKA", "HND-MMY", "HND-ISG", "NGO-CTS", "NGO-MMB", "NGO-AKJ", "NGO-HKD", "NGO-AXT", "NGO-SDJ", "NGO-MYJ", "NGO-FUK", "NGO-KMI", "NGO-NGS", "NGO-KOJ", "NGO-OKA", "NGO-MMY", "NGO-ISG", "KIX-CTS", "KIX-OKA", "KIX-MMY", "KIX-ISG", "ITM-CTS", "ITM-HKD", "ITM-AOJ", "ITM-AXT", "ITM-SDJ", "ITM-FKS", "ITM-KIJ", "ITM-MYJ", "ITM-KCZ", "ITM-FUK", "ITM-OIT", "ITM-KUM", "ITM-NGS", "ITM-KMI", "ITM-KOJ", "ITM-OKA", "ITM-ISG", "CTS-RIS", "CTS-WKJ", "CTS-MMB", "CTS-SHB", "CTS-KUH", "CTS-HKD", "CTS-AOJ", "CTS-AXT", "CTS-SDJ", "CTS-FKS", "CTS-KIJ", "CTS-TOY", "CTS-KMQ", "CTS-OKJ", "CTS-HIJ", "CTS-FUK", "FUK-KMQ", "FUK-TSJ", "FUK-FUJ", "FUK-KMI", "FUK-OKA", "OKA-SDJ", "OKA-HIJ", "OKA-IWK", "OKA-TAK", "OKA-MYJ", "OKA-KUM", "OKA-MMY", "OKA-ISG", "ISG-MMY", "CTS-FSZ", "OKA-FSZ"] },
@@ -84,17 +106,17 @@
     const mainHubs = ["HND", "ITM", "CTS", "OKA", "KIX", "NGO", "FUK"];
 
     function createCurve(start, end, color) {
-        const latlngs = [];
         const offset = (color === "#0078d4") ? -2 : (color === "#e10012") ? 2 : 0;
         const midLat = (start[0] + end[0]) / 2 + (end[1] - start[1]) * 0.08 * (offset / 2);
         const midLon = (start[1] + end[1]) / 2 - (end[0] - start[0]) * 0.08 * (offset / 2);
+        const latlngs = [];
         for (let i = 0; i <= 20; i++) {
             const t = i / 20;
             const lat = (1-t)*(1-t)*start[0] + 2*(1-t)*t*midLat + t*t*end[0];
             const lon = (1-t)*(1-t)*start[1] + 2*(1-t)*t*midLon + t*t*end[1];
             latlngs.push([lat, lon]);
         }
-        return L.polyline(latlngs, { color: color, weight: 1.2, opacity: 0.25, interactive: false });
+        return L.polyline(latlngs, { color: color, weight: 1.2, opacity: 0.2, interactive: false });
     }
 
     routesData.forEach(group => {
@@ -102,24 +124,22 @@
             const [fid, tid] = r.split('-');
             if (airports[fid] && airports[tid]) {
                 const line = createCurve(airports[fid], airports[tid], group.color).addTo(map);
-                polylines.push({el: line, color: group.color, from: fid, to: tid});
+                polylines.push({ el: line, color: group.color, from: fid, to: tid });
             }
         });
     });
 
     Object.keys(airports).forEach(id => {
         const isHub = mainHubs.includes(id);
-        const marker = L.circleMarker(airports[id], {
-            radius: isHub ? 6 : 2.5, color: isHub ? '#fff' : '#888', fillColor: '#000', fillOpacity: 1, weight: isHub ? 2 : 1, pane: 'markerPane'
-        }).addTo(map);
-        marker.on('click', () => showDetails(id));
+        const marker = L.circleMarker(airports[id], { radius: isHub ? 6 : 3, color: isHub ? '#fff' : '#888', fillColor: '#000', fillOpacity: 1, weight: isHub ? 2 : 1, pane: 'markerPane' }).addTo(map);
+        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showDetails(id); });
     });
 
     function showDetails(id) {
         const groups = {};
         polylines.forEach(p => {
             const isRelated = (p.from === id || p.to === id);
-            p.el.setStyle({ opacity: isRelated ? 0.9 : 0.02, weight: isRelated ? 2.5 : 1.2 });
+            p.el.setStyle({ opacity: isRelated ? 0.9 : 0.01, weight: isRelated ? 2.5 : 1 });
             if (isRelated) {
                 const destId = (p.from === id) ? p.to : p.from;
                 if (!groups[p.color]) groups[p.color] = [];
@@ -130,26 +150,33 @@
 
         let html = "";
         const airportOrder = Object.keys(airports);
-        Object.keys(carrierMap).forEach(color => {
+        Object.keys(carrierNames).forEach(color => {
             if (groups[color]) {
                 const sorted = airportOrder.filter(did => groups[color].includes(did));
-                html += `<div class="carrier-section"><div class="carrier-title" style="background:${color}22; color:${color}; border:1px solid ${color}44">${carrierMap[color]}</div><div class="dest-grid">${sorted.map(did => `<span class="dest-tag">${airports[did][2]}</span>`).join('')}</div></div>`;
+                html += `<div class="carrier-section"><div class="carrier-title" style="background:${color}22; color:${color}; border:1px solid ${color}44">${carrierNames[color]}</div><div class="dest-grid">${sorted.map(did => `<span class="dest-tag">${airports[did][2]}</span>`).join('')}</div></div>`;
             }
         });
+
+        const panel = document.getElementById('ui-container');
+        panel.classList.add('active');
         document.getElementById('details').style.display = 'block';
         document.getElementById('selected-name').innerText = airports[id][2];
-        document.getElementById('selected-id').innerText = id + " HUB NETWORK";
+        document.getElementById('selected-id').innerText = id + " NETWORK";
         document.getElementById('carrier-list').innerHTML = html;
     }
+
+    function toggleMobilePanel() { document.getElementById('ui-container').classList.toggle('active'); }
 
     function filterRoutes(color) {
         polylines.forEach(p => {
             const match = (color === 'all' || p.color === color);
-            p.el.setStyle({ opacity: match ? 0.25 : 0, weight: 1.2 });
+            p.el.setStyle({ opacity: match ? 0.2 : 0, weight: 1.2 });
         });
         document.getElementById('details').style.display = 'none';
+        document.getElementById('ui-container').classList.remove('active');
     }
-    map.on('click', (e) => { if (e.originalEvent.target.id === 'map') filterRoutes('all'); });
+
+    map.on('click', () => { filterRoutes('all'); });
 </script>
 </body>
 </html>
