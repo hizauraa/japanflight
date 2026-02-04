@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Japan Flight Network 2026 Mobile</title>
+    <title>Japan Flight Network 2026</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --panel-bg: rgba(10, 10, 15, 0.98); --accent-red: #e10012; --accent-blue: #0078d4; }
@@ -11,45 +11,50 @@
         
         #map { flex-grow: 1; width: 100vw; height: 100vh; background: #050507; position: absolute; top: 0; left: 0; }
 
-        /* レスポンシブパネル (PC: サイドバー / スマホ: ボトムシート) */
+        /* UIパネル */
         #ui-container {
             position: relative; z-index: 1001; background: var(--panel-bg);
             backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; transition: 0.3s ease;
+            display: flex; flex-direction: column;
         }
 
-        @media (min-width: 768px) { /* PC */
-            #ui-container { width: 320px; height: 100vh; padding: 25px; }
-            #details { flex-grow: 1; overflow-y: auto; }
+        /* PC設定 */
+        @media (min-width: 768px) {
+            #ui-container { width: 320px; height: 100vh; padding: 25px; transition: 0.3s; }
+            .drag-handle { display: none; }
         }
-        @media (max-width: 767px) { /* スマホ */
+
+        /* スマホ設定 (ボトムシート) */
+        @media (max-width: 767px) {
             #ui-container {
                 position: fixed; bottom: 0; left: 0; width: 100%;
-                max-height: 60vh; padding: 15px; border-radius: 20px 20px 0 0;
-                transform: translateY(calc(100% - 60px)); /* 通常時は少しだけ見せる */
+                height: 75vh; padding: 10px 15px 30px; border-radius: 20px 20px 0 0;
+                transform: translateY(calc(75vh - 160px)); /* 初期表示の高さを調整 */
+                transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+                touch-action: none;
             }
-            #ui-container.active { transform: translateY(0); }
-            .drag-handle { width: 40px; height: 4px; background: #444; border-radius: 2px; margin: 0 auto 10px; cursor: pointer; }
+            .drag-handle { width: 40px; height: 5px; background: #444; border-radius: 3px; margin: 0 auto 15px; cursor: grab; }
         }
 
-        h2 { font-size: 14px; letter-spacing: 2px; color: #888; margin: 0 0 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .notice-box { background: rgba(255, 165, 0, 0.05); border: 1px solid rgba(255, 165, 0, 0.2); border-radius: 6px; padding: 8px; margin-bottom: 15px; font-size: 9px; color: #ffa500; }
-        
-        .filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }
+        .notice-box { background: rgba(255, 165, 0, 0.05); border: 1px solid rgba(255, 165, 0, 0.2); border-radius: 6px; padding: 8px; margin-bottom: 15px; font-size: 10px; color: #ffa500; line-height: 1.4; }
+
+        .filter-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
         .filter-btn {
-            flex: 1 1 calc(50% - 5px); min-width: 120px;
-            display: flex; align-items: center; padding: 8px; border-radius: 6px;
-            cursor: pointer; font-size: 10px; background: rgba(255,255,255,0.03); color: #ccc; font-weight: bold;
+            flex: 1 1 calc(50% - 6px); /* 横並び2つ */
+            display: flex; align-items: center; justify-content: center; padding: 12px; border-radius: 8px;
+            cursor: pointer; font-size: 11px; background: rgba(255,255,255,0.06); color: #ccc; font-weight: bold; border: 1px solid rgba(255,255,255,0.1);
         }
         .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
 
-        #details { display: none; margin-top: 10px; overflow-y: auto; }
-        .hub-name { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 2px; }
-        .hub-id { font-size: 10px; color: #666; letter-spacing: 1px; margin-bottom: 15px; }
-        .carrier-section { margin-top: 12px; }
-        .carrier-title { font-size: 9px; font-weight: bold; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; display: inline-block; }
-        .dest-grid { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.1); }
-        .dest-tag { font-size: 9px; padding: 3px 6px; background: rgba(255,255,255,0.05); border-radius: 2px; color: #aaa; }
+        #reset-area { display: none; width: 100%; margin-bottom: 15px; }
+
+        #details { display: none; overflow-y: auto; flex-grow: 1; padding-bottom: 20px; }
+        .hub-name { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+        .hub-id { font-size: 11px; color: #666; letter-spacing: 1px; margin-bottom: 15px; }
+        .carrier-section { margin-top: 15px; }
+        .carrier-title { font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 4px; margin-bottom: 8px; display: inline-block; }
+        .dest-grid { display: flex; flex-wrap: wrap; gap: 5px; padding-left: 10px; border-left: 2px solid rgba(255,255,255,0.1); }
+        .dest-tag { font-size: 10px; padding: 4px 8px; background: rgba(255,255,255,0.07); border-radius: 4px; color: #bbb; }
     </style>
 </head>
 <body>
@@ -57,19 +62,22 @@
 <div id="map"></div>
 
 <div id="ui-container">
-    <div class="drag-handle" onclick="toggleMobilePanel()"></div>
-    <h2>FLIGHT NETWORK</h2>
+    <div class="drag-handle" id="drag-handle"></div>
     
-    <div class="notice-box">
-        本マップは2026年2月時点の参考用です。実際の運航情報は各航空会社の公式サイトを確認してください。
+    <div id="filter-area">
+        <div class="notice-box">
+            本マップは2026年2月時点の参考用です。実際の運航情報は各航空会社の公式サイトを確認してください。
+        </div>
+        <div class="filter-group">
+            <div class="filter-btn" onclick="filterRoutes('#0078d4')"><div class="dot" style="background:#0078d4"></div>ANA</div>
+            <div class="filter-btn" onclick="filterRoutes('#e10012')"><div class="dot" style="background:#e10012"></div>JAL</div>
+            <div class="filter-btn" onclick="filterRoutes('#9d33ff')"><div class="dot" style="background:#9d33ff"></div>Peach</div>
+            <div class="filter-btn" onclick="filterRoutes('#2ecc71')">Regional</div>
+        </div>
     </div>
 
-    <div class="filter-group">
-        <div class="filter-btn" onclick="filterRoutes('all')">All routes</div>
-        <div class="filter-btn" onclick="filterRoutes('#0078d4')"><div class="dot" style="background:#0078d4"></div>ANA</div>
-        <div class="filter-btn" onclick="filterRoutes('#e10012')"><div class="dot" style="background:#e10012"></div>JAL</div>
-        <div class="filter-btn" onclick="filterRoutes('#9d33ff')"><div class="dot" style="background:#9d33ff"></div>Peach</div>
-        <div class="filter-btn" onclick="filterRoutes('#2ecc71')"><div class="dot" style="background:#2ecc71"></div>Others</div>
+    <div id="reset-area">
+        <div class="filter-btn" onclick="resetView()" style="width:100%; background:rgba(255,255,255,0.15)">Close Details / Reset All</div>
     </div>
 
     <div id="details">
@@ -81,26 +89,12 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    const airports = {"HND":[35.54,139.77,"羽田"],"NRT":[35.77,140.39,"成田"],"CTS":[42.77,141.69,"新千歳"],"OKD":[43.11,141.38,"丘珠"],"NGO":[34.85,136.80,"中部"],"ITM":[34.78,135.43,"伊丹"],"KIX":[34.43,135.24,"関西"],"FUK":[33.58,130.45,"福岡"],"OKA":[26.20,127.64,"那覇"],"IBR":[36.18,140.41,"茨城"],"MMJ":[36.16,137.92,"松本"],"CHO":[35.67,139.52,"調布"],"WKJ":[45.40,141.75,"稚内"],"RIS":[45.24,141.18,"利尻"],"MMB":[43.88,144.16,"女満別"],"AKJ":[43.67,142.44,"旭川"],"KUH":[43.04,144.19,"釧路"],"OBO":[42.73,143.21,"帯広"],"HKD":[41.77,140.82,"函館"],"ONH":[42.14,143.24,"紋別"],"SHB":[43.57,144.95,"中標津"],"OKS":[42.14,139.46,"奥尻"],"AOJ":[40.73,140.69,"青森"],"MSJ":[40.70,141.36,"三沢"],"HNA":[39.42,141.13,"花巻"],"SDJ":[38.13,140.91,"仙台"],"AXT":[39.61,140.21,"秋田"],"SYO":[38.81,139.78,"庄内"],"GAJ":[38.41,140.36,"山形"],"FKS":[37.22,140.43,"福島"],"ONV":[40.30,140.05,"大館能代"],"KIJ":[37.95,139.12,"新潟"],"TOY":[36.64,137.18,"富山"],"KMQ":[36.39,136.40,"小松"],"NTQ":[37.29,136.95,"能登"],"FSZ":[34.79,138.17,"静岡"],"HAC":[33.11,139.75,"八丈島"],"UKB":[34.63,135.22,"神戸"],"SHM":[33.66,135.35,"南紀白浜"],"TJH":[35.51,134.78,"但馬"],"OKI":[36.30,133.32,"隠岐"],"IZO":[35.41,132.89,"出雲"],"OKJ":[34.75,133.85,"岡山"],"HIJ":[34.44,132.91,"広島"],"IWK":[34.14,132.23,"岩国"],"UBE":[33.93,131.26,"山口宇部"],"TTJ":[35.52,134.18,"鳥取"],"YGJ":[35.49,133.23,"米子"],"IWJ":[34.67,131.79,"萩・石見"],"TKS":[34.13,134.60,"徳島"],"TAK":[34.21,134.01,"高松"],"MYJ":[33.82,132.69,"松山"],"KCZ":[33.54,133.66,"高知"],"KKJ":[33.84,131.03,"北九州"],"HSG":[33.14,130.30,"佐賀"],"OIT":[33.47,131.73,"大分"],"KUM":[32.83,130.85,"熊本"],"NGS":[32.91,129.91,"長崎"],"KMI":[31.87,131.44,"宮崎"],"KOJ":[31.80,130.71,"鹿児島"],"TSJ":[34.29,129.32,"対馬"],"FUJ":[32.66,128.83,"福江"],"AMX":[32.48,130.15,"天草"],"TKN":[30.62,130.98,"種子島"],"YAK":[30.38,130.65,"屋久島"],"KIE":[29.83,129.98,"喜界島"],"ASJ":[28.43,129.71,"奄美"],"TNE":[27.83,128.92,"徳之島"],"OIR":[27.37,128.60,"沖永良部"],"RNJ":[27.04,128.41,"与論"],"UEO":[26.36,126.75,"久米島"],"MMY":[24.78,125.29,"宮古"],"SHI":[24.82,125.14,"下地島"],"ISG":[24.39,124.24,"石垣"],"TRA":[24.60,123.75,"多良間"],"OGN":[24.04,123.76,"与那国"],"KJP":[25.94,131.32,"北大東"],"KDE":[25.84,131.23,"南大東"],"NKM":[35.24,136.92,"小牧"],"OIM":[34.78,139.38,"大島"],"NJA":[34.34,139.26,"新島"],"KZU":[34.19,139.15,"神津島"],"MYE":[34.07,139.56,"三宅島"]};
+    const carrierNames = { "#0078d4": "ANA Group", "#e10012": "JAL Group", "#9d33ff": "Peach", "#2ecc71": "Regional/Other" };
+    const routesData = [{ from: "ANA", color: "#0078d4", routes: ["NRT-NGO", "NRT-ITM", "NRT-CTS", "HND-CTS", "HND-WKJ", "HND-ONH", "HND-SHB", "HND-KUH", "HND-HKD", "HND-ONV", "HND-AXT", "HND-SYO", "HND-NGO", "HND-TOY", "HND-KMQ", "HND-NTQ", "HND-HAC", "HND-KIX", "HND-ITM", "HND-UKB", "HND-OKJ", "HND-HIJ", "HND-IWK", "HND-UBE", "HND-TTJ", "HND-YGJ", "HND-IWJ", "HND-TKS", "HND-TAK", "HND-MYJ", "HND-KCZ", "HND-FUK", "HND-KKJ", "HND-HSG", "HND-OIT", "HND-KUM", "HND-NGS", "HND-KMI", "HND-KOJ", "HND-OKA", "HND-MMY", "HND-ISG", "NGO-CTS", "NGO-MMB", "NGO-AKJ", "NGO-HKD", "NGO-AXT", "NGO-SDJ", "NGO-MYJ", "NGO-FUK", "NGO-KMI", "NGO-NGS", "NGO-KOJ", "NGO-OKA", "NGO-MMY", "NGO-ISG", "KIX-CTS", "KIX-OKA", "KIX-MMY", "KIX-ISG", "ITM-CTS", "ITM-HKD", "ITM-AOJ", "ITM-AXT", "ITM-SDJ", "ITM-FKS", "ITM-KIJ", "ITM-MYJ", "ITM-KCZ", "ITM-FUK", "ITM-OIT", "ITM-KUM", "ITM-NGS", "ITM-KMI", "ITM-KOJ", "ITM-OKA", "ITM-ISG", "CTS-RIS", "CTS-WKJ", "CTS-MMB", "CTS-SHB", "CTS-KUH", "CTS-HKD", "CTS-AOJ", "CTS-AXT", "CTS-SDJ", "CTS-FKS", "CTS-KIJ", "CTS-TOY", "CTS-KMQ", "CTS-OKJ", "CTS-HIJ", "CTS-FUK", "FUK-KMQ", "FUK-TSJ", "FUK-FUJ", "FUK-KMI", "FUK-OKA", "OKA-SDJ", "OKA-HIJ", "OKA-IWK", "OKA-TAK", "OKA-MYJ", "OKA-KUM", "OKA-MMY", "OKA-ISG", "ISG-MMY", "CTS-FSZ", "OKA-FSZ"] },{ from: "JAL", color: "#e10012", routes: ["HND-ITM", "HND-KIX", "HND-CTS", "HND-NGO", "HND-FUK", "HND-OKA", "HND-MMB", "HND-AKJ", "HND-KUH", "HND-OBO", "HND-HKD", "HND-AOJ", "HND-MSJ", "HND-AXT", "HND-GAJ", "HND-KMQ", "HND-SHM", "HND-OKJ", "HND-IZO", "HND-HIJ", "HND-UBE", "HND-TKS", "HND-TAK", "HND-KCZ", "HND-MYJ", "HND-KKJ", "HND-OIT", "HND-NGS", "HND-KUM", "HND-KMI", "HND-KOJ", "HND-ASJ", "HND-MMY", "HND-ISG", "NRT-ITM", "NRT-NGO", "NRT-CTS", "NRT-AKJ", "NRT-KIX", "NRT-TAK", "NRT-MYJ", "NRT-KCZ", "NRT-FUK", "NRT-OIT", "NRT-NGS", "NRT-KUM", "NRT-KMI", "NRT-KOJ", "NRT-OKA", "NRT-SHI", "ITM-CTS", "ITM-FUK", "ITM-OKA", "ITM-HKD", "ITM-AOJ", "ITM-MSJ", "ITM-AXT", "ITM-HNA", "ITM-GAJ", "ITM-SDJ", "ITM-KIJ", "ITM-TJH", "ITM-IZO", "ITM-OKI", "ITM-MYJ", "ITM-OIT", "ITM-NGS", "ITM-KUM", "ITM-KMI", "ITM-KOJ", "ITM-YAK", "ITM-ASJ", "KIX-CTS", "KIX-OKA", "KIX-MMY", "KIX-ISG", "CTS-MMB", "CTS-AOJ", "CTS-HNA", "CTS-SDJ", "CTS-KIJ", "CTS-HIJ", "OKD-RIS", "OKD-MMB", "OKD-SHB", "OKD-KUH", "OKD-HKD", "OKD-OKS", "OKD-MSJ", "OKD-AXT", "HKD-OKS", "NGO-CTS", "NGO-OBO", "NGO-KUH", "NGO-FUK", "NGO-OKA", "NGO-MMY", "NGO-ISG", "FUK-CTS", "FUK-OKA", "FUK-HNA", "FUK-SDJ", "FUK-IZO", "FUK-TKS", "FUK-KCZ", "FUK-MYJ", "FUK-KMI", "FUK-KOJ", "FUK-YAK", "FUK-ASJ", "OKA-KMQ", "OKA-OKJ", "OKA-MMY", "OKA-ISG", "OKA-KJP", "OKA-KDE", "OKA-RNJ", "OKA-UEO", "OKA-ASJ", "OKA-OGN", "OKA-OIR", "IZO-OKI", "KOJ-MYJ", "KOJ-TKN", "KOJ-YAK", "KOJ-KIE", "KOJ-ASJ", "KOJ-TNE", "KOJ-OIR", "KOJ-RNJ", "ASJ-KIE", "ASJ-TNE", "ASJ-RNJ", "OIR-TNE", "MMY-ISG", "MMY-TRA", "ISG-OGN"] },{ from: "Peach", color: "#9d33ff", routes: ["KIX-CTS", "KIX-MMB", "KIX-KUH", "KIX-SDJ", "KIX-KIJ", "KIX-NRT", "KIX-FUK", "KIX-NGS", "KIX-KMI", "KIX-KOJ", "KIX-ASJ", "KIX-OKA", "KIX-ISG", "NRT-CTS", "NRT-FUK", "NRT-OIT", "NRT-ASJ", "NRT-OKA", "NRT-ISG", "CTS-OKA", "SDJ-CTS", "NGO-CTS", "NGO-SDJ", "NGO-OKA", "FUK-CTS", "FUK-OKA", "FUK-ISG"] },{ from: "Others", color: "#2ecc71", routes: ["NKM-GAJ", "NKM-KIJ", "NKM-IZO", "NKM-KCZ", "NGO-IZO", "NGO-KCZ", "MMJ-UKB", "UKB-KCZ", "NKM-AOJ", "NKM-HNA", "NKM-FUK", "NKM-KUM", "UKB-KIJ", "CTS-GAJ", "CTS-KIJ", "CTS-FUK", "NKM-OKD", "FSZ-CTS", "FSZ-OKD", "FSZ-FUK", "FSZ-KOJ", "MMJ-CTS", "MMJ-OKD", "MMJ-FUK", "UKB-AOJ", "UKB-HNA", "FUK-KIJ", "FUK-SDJ", "FUK-HNA", "NGO-KUM", "HND-CTS", "HND-UKB", "HND-FUK", "HND-KOJ", "HND-OKA", "HND-SHI", "CTS-IBR", "CTS-NGO", "CTS-UKB", "CTS-FUK", "SDJ-UKB", "IBR-UKB", "IBR-FUK", "IBR-OKA", "NGO-KOJ", "NGO-OKA", "UKB-NGS", "UKB-KOJ", "UKB-OKA", "UKB-SHI", "FUK-OKA", "KOJ-ASJ", "OKA-SHI", "HND-KMI", "HND-KUM", "HND-NGS", "HND-KOJ", "HND-OIT", "HND-OKA", "OKA-KMI", "OKA-KOJ", "OKA-UKB", "OKA-NGO", "OKA-ISG", "OKA-FUK", "NGO-KMI", "NGO-KOJ", "SDJ-CTS", "SDJ-NGO", "SDJ-ITM", "SDJ-HIJ", "SDJ-FUK", "NGO-FUK", "NGO-MYJ", "NGO-OIT", "ITM-FKS", "ITM-KIJ", "ITM-FUK", "FUK-KIJ", "ITM-OIT", "ITM-KOJ", "CTS-HND", "CTS-UKB", "CTS-NGO", "CTS-SDJ", "CTS-FUK", "HND-MMB", "HND-KUH", "HND-AKJ", "HND-OBO", "HND-HKD", "HKD-NGO", "NGS-IKI", "NGS-FUJ", "NGS-TSJ", "FUK-FUJ", "FUK-TSJ", "FUK-KMI", "FUK-KMQ", "NGO-KMI", "NGO-AXT", "KKJ-HND", "FUK-HND", "KIX-HND", "UBE-HND", "FUK-NGO", "FUK-SDJ", "CHO-OIM", "CHO-NJA", "CHO-KZU", "CHO-MYE", "AMX-FUK", "AMX-KUM", "KUM-ITM", "KIJ-OKD", "KIJ-NGO", "KIJ-UKB", "NGO-OKD", "KIJ-SDJ"] }];
+
     const map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([36.5, 137.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-    const airports = {
-        "HND":[35.54,139.77,"羽田"],"NRT":[35.77,140.39,"成田"],"CTS":[42.77,141.69,"新千歳"],"OKD":[43.11,141.38,"丘珠"],"NGO":[34.85,136.80,"中部"],"ITM":[34.78,135.43,"伊丹"],"KIX":[34.43,135.24,"関西"],"FUK":[33.58,130.45,"福岡"],"OKA":[26.20,127.64,"那覇"],
-        "IBR":[36.18,140.41,"茨城"],"MMJ":[36.16,137.92,"松本"],"CHO":[35.67,139.52,"調布"],"WKJ":[45.40,141.75,"稚内"],"RIS":[45.24,141.18,"利尻"],"MMB":[43.88,144.16,"女満別"],"AKJ":[43.67,142.44,"旭川"],"KUH":[43.04,144.19,"釧路"],"OBO":[42.73,143.21,"帯広"],"HKD":[41.77,140.82,"函館"],"ONH":[42.14,143.24,"紋別"],"SHB":[43.57,144.95,"中標津"],"OKS":[42.14,139.46,"奥尻"],
-        "AOJ":[40.73,140.69,"青森"],"MSJ":[40.70,141.36,"三沢"],"HNA":[39.42,141.13,"花巻"],"SDJ":[38.13,140.91,"仙台"],"AXT":[39.61,140.21,"秋田"],"SYO":[38.81,139.78,"庄内"],"GAJ":[38.41,140.36,"山形"],"FKS":[37.22,140.43,"福島"],"ONV":[40.30,140.05,"大館能代"],"KIJ":[37.95,139.12,"新潟"],"TOY":[36.64,137.18,"富山"],"KMQ":[36.39,136.40,"小松"],"NTQ":[37.29,136.95,"能登"],"FSZ":[34.79,138.17,"静岡"],"HAC":[33.11,139.75,"八丈島"],
-        "UKB":[34.63,135.22,"神戸"],"SHM":[33.66,135.35,"南紀白浜"],"TJH":[35.51,134.78,"但馬"],"OKI":[36.30,133.32,"隠岐"],"IZO":[35.41,132.89,"出雲"],"OKJ":[34.75,133.85,"岡山"],"HIJ":[34.44,132.91,"広島"],"IWK":[34.14,132.23,"岩国"],"UBE":[33.93,131.26,"山口宇部"],"TTJ":[35.52,134.18,"鳥取"],"YGJ":[35.49,133.23,"米子"],"IWJ":[34.67,131.79,"萩・石見"],"TKS":[34.13,134.60,"徳島"],"TAK":[34.21,134.01,"高松"],"MYJ":[33.82,132.69,"松山"],"KCZ":[33.54,133.66,"高知"],
-        "KKJ":[33.84,131.03,"北九州"],"HSG":[33.14,130.30,"佐賀"],"OIT":[33.47,131.73,"大分"],"KUM":[32.83,130.85,"熊本"],"NGS":[32.91,129.91,"長崎"],"KMI":[31.87,131.44,"宮崎"],"KOJ":[31.80,130.71,"鹿児島"],"TSJ":[34.29,129.32,"対馬"],"FUJ":[32.66,128.83,"福江"],"AMX":[32.48,130.15,"天草"],
-        "TKN":[30.62,130.98,"種子島"],"YAK":[30.38,130.65,"屋久島"],"KIE":[29.83,129.98,"喜界島"],"ASJ":[28.43,129.71,"奄美"],"TNE":[27.83,128.92,"徳之島"],"OIR":[27.37,128.60,"沖永良部"],"RNJ":[27.04,128.41,"与論"],"UEO":[26.36,126.75,"久米島"],"MMY":[24.78,125.29,"宮古"],"SHI":[24.82,125.14,"下地島"],"ISG":[24.39,124.24,"石垣"],"TRA":[24.60,123.75,"多良間"],"OGN":[24.04,123.76,"与那国"],"KJP":[25.94,131.32,"北大東"],"KDE":[25.84,131.23,"南大東"],"NKM":[35.24,136.92,"小牧"],"OIM":[34.78,139.38,"大島"],"NJA":[34.34,139.26,"新島"],"KZU":[34.19,139.15,"神津島"],"MYE":[34.07,139.56,"三宅島"]
-    };
-
-    const carrierNames = { "#0078d4": "ANA Group", "#e10012": "JAL Group", "#9d33ff": "Peach", "#2ecc71": "Regional/Other" };
-
-    const routesData = [
-        { from: "ANA", color: "#0078d4", routes: ["NRT-NGO", "NRT-ITM", "NRT-CTS", "HND-CTS", "HND-WKJ", "HND-ONH", "HND-SHB", "HND-KUH", "HND-HKD", "HND-ONV", "HND-AXT", "HND-SYO", "HND-NGO", "HND-TOY", "HND-KMQ", "HND-NTQ", "HND-HAC", "HND-KIX", "HND-ITM", "HND-UKB", "HND-OKJ", "HND-HIJ", "HND-IWK", "HND-UBE", "HND-TTJ", "HND-YGJ", "HND-IWJ", "HND-TKS", "HND-TAK", "HND-MYJ", "HND-KCZ", "HND-FUK", "HND-KKJ", "HND-HSG", "HND-OIT", "HND-KUM", "HND-NGS", "HND-KMI", "HND-KOJ", "HND-OKA", "HND-MMY", "HND-ISG", "NGO-CTS", "NGO-MMB", "NGO-AKJ", "NGO-HKD", "NGO-AXT", "NGO-SDJ", "NGO-MYJ", "NGO-FUK", "NGO-KMI", "NGO-NGS", "NGO-KOJ", "NGO-OKA", "NGO-MMY", "NGO-ISG", "KIX-CTS", "KIX-OKA", "KIX-MMY", "KIX-ISG", "ITM-CTS", "ITM-HKD", "ITM-AOJ", "ITM-AXT", "ITM-SDJ", "ITM-FKS", "ITM-KIJ", "ITM-MYJ", "ITM-KCZ", "ITM-FUK", "ITM-OIT", "ITM-KUM", "ITM-NGS", "ITM-KMI", "ITM-KOJ", "ITM-OKA", "ITM-ISG", "CTS-RIS", "CTS-WKJ", "CTS-MMB", "CTS-SHB", "CTS-KUH", "CTS-HKD", "CTS-AOJ", "CTS-AXT", "CTS-SDJ", "CTS-FKS", "CTS-KIJ", "CTS-TOY", "CTS-KMQ", "CTS-OKJ", "CTS-HIJ", "CTS-FUK", "FUK-KMQ", "FUK-TSJ", "FUK-FUJ", "FUK-KMI", "FUK-OKA", "OKA-SDJ", "OKA-HIJ", "OKA-IWK", "OKA-TAK", "OKA-MYJ", "OKA-KUM", "OKA-MMY", "OKA-ISG", "ISG-MMY", "CTS-FSZ", "OKA-FSZ"] },
-        { from: "JAL", color: "#e10012", routes: ["HND-ITM", "HND-KIX", "HND-CTS", "HND-NGO", "HND-FUK", "HND-OKA", "HND-MMB", "HND-AKJ", "HND-KUH", "HND-OBO", "HND-HKD", "HND-AOJ", "HND-MSJ", "HND-AXT", "HND-GAJ", "HND-KMQ", "HND-SHM", "HND-OKJ", "HND-IZO", "HND-HIJ", "HND-UBE", "HND-TKS", "HND-TAK", "HND-KCZ", "HND-MYJ", "HND-KKJ", "HND-OIT", "HND-NGS", "HND-KUM", "HND-KMI", "HND-KOJ", "HND-ASJ", "HND-MMY", "HND-ISG", "NRT-ITM", "NRT-NGO", "NRT-CTS", "NRT-AKJ", "NRT-KIX", "NRT-TAK", "NRT-MYJ", "NRT-KCZ", "NRT-FUK", "NRT-OIT", "NRT-NGS", "NRT-KUM", "NRT-KMI", "NRT-KOJ", "NRT-OKA", "NRT-SHI", "ITM-CTS", "ITM-FUK", "ITM-OKA", "ITM-HKD", "ITM-AOJ", "ITM-MSJ", "ITM-AXT", "ITM-HNA", "ITM-GAJ", "ITM-SDJ", "ITM-KIJ", "ITM-TJH", "ITM-IZO", "ITM-OKI", "ITM-MYJ", "ITM-OIT", "ITM-NGS", "ITM-KUM", "ITM-KMI", "ITM-KOJ", "ITM-YAK", "ITM-ASJ", "KIX-CTS", "KIX-OKA", "KIX-MMY", "KIX-ISG", "CTS-MMB", "CTS-AOJ", "CTS-HNA", "CTS-SDJ", "CTS-KIJ", "CTS-HIJ", "OKD-RIS", "OKD-MMB", "OKD-SHB", "OKD-KUH", "OKD-HKD", "OKD-OKS", "OKD-MSJ", "OKD-AXT", "HKD-OKS", "NGO-CTS", "NGO-OBO", "NGO-KUH", "NGO-FUK", "NGO-OKA", "NGO-MMY", "NGO-ISG", "FUK-CTS", "FUK-OKA", "FUK-HNA", "FUK-SDJ", "FUK-IZO", "FUK-TKS", "FUK-KCZ", "FUK-MYJ", "FUK-KMI", "FUK-KOJ", "FUK-YAK", "FUK-ASJ", "OKA-KMQ", "OKA-OKJ", "OKA-MMY", "OKA-ISG", "OKA-KJP", "OKA-KDE", "OKA-RNJ", "OKA-UEO", "OKA-ASJ", "OKA-OGN", "OKA-OIR", "IZO-OKI", "KOJ-MYJ", "KOJ-TKN", "KOJ-YAK", "KOJ-KIE", "KOJ-ASJ", "KOJ-TNE", "KOJ-OIR", "KOJ-RNJ", "ASJ-KIE", "ASJ-TNE", "ASJ-RNJ", "OIR-TNE", "MMY-ISG", "MMY-TRA", "ISG-OGN"] },
-        { from: "Peach", color: "#9d33ff", routes: ["KIX-CTS", "KIX-MMB", "KIX-KUH", "KIX-SDJ", "KIX-KIJ", "KIX-NRT", "KIX-FUK", "KIX-NGS", "KIX-KMI", "KIX-KOJ", "KIX-ASJ", "KIX-OKA", "KIX-ISG", "NRT-CTS", "NRT-FUK", "NRT-OIT", "NRT-ASJ", "NRT-OKA", "NRT-ISG", "CTS-OKA", "SDJ-CTS", "NGO-CTS", "NGO-SDJ", "NGO-OKA", "FUK-CTS", "FUK-OKA", "FUK-ISG"] },
-        { from: "Others", color: "#2ecc71", routes: ["NKM-GAJ", "NKM-KIJ", "NKM-IZO", "NKM-KCZ", "NGO-IZO", "NGO-KCZ", "MMJ-UKB", "UKB-KCZ", "NKM-AOJ", "NKM-HNA", "NKM-FUK", "NKM-KUM", "UKB-KIJ", "CTS-GAJ", "CTS-KIJ", "CTS-FUK", "NKM-OKD", "FSZ-CTS", "FSZ-OKD", "FSZ-FUK", "FSZ-KOJ", "MMJ-CTS", "MMJ-OKD", "MMJ-FUK", "UKB-AOJ", "UKB-HNA", "FUK-KIJ", "FUK-SDJ", "FUK-HNA", "NGO-KUM", "HND-CTS", "HND-UKB", "HND-FUK", "HND-KOJ", "HND-OKA", "HND-SHI", "CTS-IBR", "CTS-NGO", "CTS-UKB", "CTS-FUK", "SDJ-UKB", "IBR-UKB", "IBR-FUK", "IBR-OKA", "NGO-KOJ", "NGO-OKA", "UKB-NGS", "UKB-KOJ", "UKB-OKA", "UKB-SHI", "FUK-OKA", "KOJ-ASJ", "OKA-SHI", "HND-KMI", "HND-KUM", "HND-NGS", "HND-KOJ", "HND-OIT", "HND-OKA", "OKA-KMI", "OKA-KOJ", "OKA-UKB", "OKA-NGO", "OKA-ISG", "OKA-FUK", "NGO-KMI", "NGO-KOJ", "SDJ-CTS", "SDJ-NGO", "SDJ-ITM", "SDJ-HIJ", "SDJ-FUK", "NGO-FUK", "NGO-MYJ", "NGO-OIT", "ITM-FKS", "ITM-KIJ", "ITM-FUK", "FUK-KIJ", "ITM-OIT", "ITM-KOJ", "CTS-HND", "CTS-UKB", "CTS-NGO", "CTS-SDJ", "CTS-FUK", "HND-MMB", "HND-KUH", "HND-AKJ", "HND-OBO", "HND-HKD", "HKD-NGO", "NGS-IKI", "NGS-FUJ", "NGS-TSJ", "FUK-FUJ", "FUK-TSJ", "FUK-KMI", "FUK-KMQ", "NGO-KMI", "NGO-AXT", "KKJ-HND", "FUK-HND", "KIX-HND", "UBE-HND", "FUK-NGO", "FUK-SDJ", "CHO-OIM", "CHO-NJA", "CHO-KZU", "CHO-MYE", "AMX-FUK", "AMX-KUM", "KUM-ITM", "KIJ-OKD", "KIJ-NGO", "KIJ-UKB", "NGO-OKD", "KIJ-SDJ"] }
-    ];
 
     let polylines = [];
     const mainHubs = ["HND", "ITM", "CTS", "OKA", "KIX", "NGO", "FUK"];
@@ -131,7 +125,7 @@
 
     Object.keys(airports).forEach(id => {
         const isHub = mainHubs.includes(id);
-        const marker = L.circleMarker(airports[id], { radius: isHub ? 6 : 3, color: isHub ? '#fff' : '#888', fillColor: '#000', fillOpacity: 1, weight: isHub ? 2 : 1, pane: 'markerPane' }).addTo(map);
+        const marker = L.circleMarker(airports[id], { radius: isHub ? 7 : 4, color: isHub ? '#fff' : '#888', fillColor: '#000', fillOpacity: 1, weight: isHub ? 2 : 1, pane: 'markerPane' }).addTo(map);
         marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showDetails(id); });
     });
 
@@ -157,26 +151,81 @@
             }
         });
 
-        const panel = document.getElementById('ui-container');
-        panel.classList.add('active');
+        document.getElementById('filter-area').style.display = 'none';
+        document.getElementById('reset-area').style.display = 'block';
         document.getElementById('details').style.display = 'block';
         document.getElementById('selected-name').innerText = airports[id][2];
         document.getElementById('selected-id').innerText = id + " NETWORK";
         document.getElementById('carrier-list').innerHTML = html;
+        openPanel();
     }
 
-    function toggleMobilePanel() { document.getElementById('ui-container').classList.toggle('active'); }
+    function resetView() {
+        polylines.forEach(p => p.el.setStyle({ opacity: 0.2, weight: 1.2 }));
+        document.getElementById('details').style.display = 'none';
+        document.getElementById('reset-area').style.display = 'none';
+        document.getElementById('filter-area').style.display = 'block';
+        closePanel();
+    }
 
     function filterRoutes(color) {
         polylines.forEach(p => {
-            const match = (color === 'all' || p.color === color);
-            p.el.setStyle({ opacity: match ? 0.2 : 0, weight: 1.2 });
+            const match = (p.color === color);
+            p.el.setStyle({ opacity: match ? 0.5 : 0.02, weight: match ? 1.5 : 1 });
+            if(match) p.el.bringToFront();
         });
-        document.getElementById('details').style.display = 'none';
-        document.getElementById('ui-container').classList.remove('active');
+        openPanel();
     }
 
-    map.on('click', () => { filterRoutes('all'); });
+    map.on('click', () => { resetView(); });
+
+    const panel = document.getElementById('ui-container');
+    const handle = document.getElementById('drag-handle');
+    let startY, startTranslateY;
+    let isDragging = false;
+    const vh75 = window.innerHeight * 0.75;
+    const defaultY = vh75 - 160; 
+
+    function openPanel() {
+        panel.style.transition = "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        panel.style.transform = `translateY(0px)`;
+    }
+
+    function closePanel() {
+        panel.style.transition = "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        panel.style.transform = `translateY(${defaultY}px)`;
+    }
+
+    handle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        const style = window.getComputedStyle(panel);
+        const matrix = new WebKitCSSMatrix(style.transform);
+        startTranslateY = matrix.m42;
+        isDragging = true;
+        panel.style.transition = "none";
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - startY;
+        let newY = startTranslateY + deltaY;
+        if (newY < 0) newY = newY * 0.2; 
+        panel.style.transform = `translateY(${newY}px)`;
+    });
+
+    window.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        const style = window.getComputedStyle(panel);
+        const matrix = new WebKitCSSMatrix(style.transform);
+        const currentY = matrix.m42;
+        if (currentY < vh75 / 2) {
+            openPanel();
+        } else {
+            resetView();
+        }
+    });
+
 </script>
 </body>
 </html>
